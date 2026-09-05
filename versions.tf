@@ -4,11 +4,11 @@ terraform {
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
-      version = ">= 0.97.0, < 1.0.0"
+      version = "~> 0.112.0" # pins to the 0.112.x patch line; bump deliberately
     }
     talos = {
       source  = "siderolabs/talos"
-      version = ">= 0.10.0, < 0.13.0"
+      version = "~> 0.11.0" # pins to the 0.11.x patch line; bump deliberately
     }
   }
 }
