@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars (gitignored) and fill in the values
+# specific to your Proxmox host. Everything else has a sensible default
+# in variables.tf.
+
+proxmox_endpoint  = "https://192.168.1.20:8006"
+proxmox_api_token = "terraform@pve!opentofu=00000000-0000-0000-0000-000000000000"
+proxmox_node      = "pve" # check Datacenter in the Proxmox UI for the real node name
+
+# Only needed if you didn't use the default path from the README.
+# proxmox_ssh_private_key_path = "~/.ssh/proxmox_opentofu"

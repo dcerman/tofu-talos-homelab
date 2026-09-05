@@ -1,0 +1,12 @@
+.terraform/
+#.terraform.lock.hcl  # common convention is to commit this
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
+*.auto.tfvars
+talosconfig.yaml
+kubeconfig.yaml
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
