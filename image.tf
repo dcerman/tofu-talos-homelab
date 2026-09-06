@@ -1,4 +1,4 @@
-resource "proxmox_virtual_environment_download_file" "talos_image" {
+resource "proxmox_download_file" "talos_image" {
   content_type = "iso"
   datastore_id = var.proxmox_iso_datastore
   node_name    = var.proxmox_node
@@ -16,4 +16,9 @@ resource "proxmox_virtual_environment_download_file" "talos_image" {
   decompression_algorithm = "zst"
 
   overwrite = false
+}
+
+moved {
+  from = proxmox_virtual_environment_download_file.talos_image
+  to   = proxmox_download_file.talos_image
 }
