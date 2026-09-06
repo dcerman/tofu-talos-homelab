@@ -55,7 +55,7 @@ variable "proxmox_vm_datastore" {
 variable "network_bridge" {
   description = "Proxmox bridge the Talos VMs attach to"
   type        = string
-  default     = "vmbr0"
+  default     = "talosnet"
 }
 
 variable "network_gateway" {
