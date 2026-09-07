@@ -90,8 +90,7 @@ tofu output -raw kubeconfig > kubeconfig.yaml
 export TALOSCONFIG=$PWD/talosconfig.yaml
 export KUBECONFIG=$PWD/kubeconfig.yaml
 
-talosctl health   --control-plane-nodes 10.10.10.11   --worker-nodes 10.10.10.12,10.10.10.13
-
+talosctl health -n 10.10.10.11
 kubectl get nodes -o wide
 ```
 
