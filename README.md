@@ -6,10 +6,36 @@ Proxmox host, using:
 - [`bpg/proxmox`](https://registry.terraform.io/providers/bpg/proxmox/latest) — downloads the Talos image and creates the VMs
 - [`siderolabs/talos`](https://registry.terraform.io/providers/siderolabs/talos/latest) — generates machine configs, applies them, and bootstraps the cluster
 
+## Architecture
+
+The Proxmox bootstrap project creates the isolated network used by this
+cluster. This project creates the Talos VMs and Kubernetes cluster on that
+network.
+
+```text
+LAN: 192.168.1.0/24
+        |
+        | 192.168.1.20
+        |
+   Proxmox host
+        |
+        | talosnet: 10.10.10.0/24
+        | gateway: 10.10.10.1
+        |
+        +-- 10.10.10.11  talos-cp1  (control plane)
+        +-- 10.10.10.12  talos-wk1  (worker)
+        +-- 10.10.10.13  talos-wk2  (worker)
+```
+
+The administrative workstation is outside the isolated Talos network. To
+reach the nodes from the workstation, it needs a route to `10.10.10.0/24`
+via the Proxmox host's LAN address. See `tofu-proxmox-bootstrap`'s README
+for the workstation-specific configuration.
+
 ## Prerequisites
 
-1. **`tofu-proxmox-bootstrap` has been applied.** That project creates
-   the Proxmox role/user/API token this module authenticates with, and
+1. **`tofu-proxmox-bootstrap` has been applied.** That project creates the
+   Proxmox role/user/API token this module authenticates with, and
    the isolated internal network (`talosnet`, `10.10.10.0/24`, NAT) these
    VMs attach to — this module creates neither.
 2. **A service-account SSH key exists** — see below.
@@ -64,8 +90,9 @@ tofu output -raw kubeconfig > kubeconfig.yaml
 export TALOSCONFIG=$PWD/talosconfig.yaml
 export KUBECONFIG=$PWD/kubeconfig.yaml
 
-talosctl health
-kubectl get nodes
+talosctl health   --control-plane-nodes 10.10.10.11   --worker-nodes 10.10.10.12,10.10.10.13
+
+kubectl get nodes -o wide
 ```
 
 ## Notes / things you'll likely want to change next
@@ -76,9 +103,3 @@ kubectl get nodes
 - **No control-plane HA / VIP.** One control-plane node is the right call
   on a single 16GB stick. Once the RAM upgrade lands, bump `var.nodes` to
   3 control-plane nodes and add a `vip` patch — it's an incremental change.
-- **`decompression_algorithm` in `image.tf`** is set to `"zst"` even though
-  the URL ends in `.raw.xz` — that's what currently works against Image
-  Factory, but it's worth a second look if the download step fails.
-- **`talos_client_configuration`'s `endpoints`** should list control-plane
-  nodes only — worker nodes belong in `nodes`, not `endpoints`. Listing
-  all three as endpoints causes `talosctl` errors.
