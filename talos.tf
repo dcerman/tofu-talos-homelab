@@ -18,7 +18,7 @@ resource "talos_machine_secrets" "this" {
 data "talos_client_configuration" "this" {
   cluster_name         = var.cluster_name
   client_configuration = talos_machine_secrets.this.client_configuration
-  endpoints            = local.node_ips
+  endpoints            = [for n in local.control_plane_nodes : n.ip]
   nodes                = local.node_ips
 }
 
