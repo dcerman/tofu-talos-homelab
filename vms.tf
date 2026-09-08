@@ -5,7 +5,13 @@ resource "proxmox_virtual_environment_vm" "talos" {
   node_name = var.proxmox_node
   tags      = ["terraform", "talos", each.value.role]
 
-  on_boot         = true
+  on_boot = true
+
+  startup {
+    order    = each.value.role == "controlplane" ? 1 : 2
+    up_delay = each.value.role == "controlplane" ? 30 : 0
+  }
+
   stop_on_destroy = true
 
   agent {
