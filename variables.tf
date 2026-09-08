@@ -70,6 +70,18 @@ variable "network_cidr_suffix" {
   default     = 24
 }
 
+variable "network_vip" {
+  description = <<-EOT
+    Floating IP for the control-plane API server (Talos Virtual IP), used
+    as cluster_endpoint instead of a specific node's address. Must be
+    unused and inside the talosnet range, but outside any address
+    assigned to a node in var.nodes. Configured on every control-plane
+    node's interface; Talos handles VRRP-style failover between them.
+  EOT
+  type        = string
+  default     = "10.10.10.10"
+}
+
 # ---------------------------------------------------------------------------
 # Talos / cluster
 # ---------------------------------------------------------------------------

@@ -1,9 +1,16 @@
 locals {
-  control_plane_nodes     = [for n in var.nodes : n if n.role == "controlplane"]
-  worker_nodes            = [for n in var.nodes : n if n.role == "worker"]
-  node_ips                = [for n in var.nodes : n.ip]
+  control_plane_nodes = [for n in var.nodes : n if n.role == "controlplane"]
+  worker_nodes        = [for n in var.nodes : n if n.role == "worker"]
+  node_ips            = [for n in var.nodes : n.ip]
+  # cluster_endpoint deliberately points at the VIP (var.network_vip), not
+  # a specific node — this is what survives any single control-plane node
+  # going down. talos_machine_bootstrap and talos_cluster_kubeconfig below
+  # still target primary_control_node_ip on purpose: those talk to a
+  # node's own Talos apid API (port 50000), a separate concern from the
+  # Kubernetes API server VIP (port 6443), and a bootstrap/fetch call has
+  # to name one real node regardless of how many control planes exist.
   primary_control_node_ip = local.control_plane_nodes[0].ip
-  cluster_endpoint        = "https://${local.primary_control_node_ip}:6443"
+  cluster_endpoint        = "https://${var.network_vip}:6443"
 
   # Tells Talos to pull its install image (including the qemu-guest-agent
   # extension) from Image Factory on upgrades, instead of falling back to
@@ -35,6 +42,26 @@ data "talos_machine_configuration" "controlplane" {
         install = {
           disk  = "/dev/vda" # matches the virtio0 disk on the VM
           image = local.install_image
+        }
+        # Configures the floating VIP on this node's interface. All
+        # control-plane nodes get this identical patch (this data source
+        # is shared across all of them via for_each); Talos elects one
+        # active holder and moves it on failure.
+        #
+        # Interface name assumed to be "eth0" — true for a standard
+        # single-NIC virtio VM under Talos's predictable naming, matching
+        # this module's single network_device block, but worth confirming
+        # against the running cluster (`talosctl get links -n <node-ip>`)
+        # before applying, rather than trusting this comment blindly.
+        network = {
+          interfaces = [
+            {
+              interface = "eth0"
+              vip = {
+                ip = var.network_vip
+              }
+            }
+          ]
         }
       }
       # Disables the default Flannel CNI so Cilium (installed separately via

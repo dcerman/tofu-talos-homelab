@@ -23,6 +23,7 @@ LAN: 192.168.1.0/24
         | talosnet: 10.10.10.0/24
         | gateway: 10.10.10.1
         |
+        +-- 10.10.10.10  (VIP, floats across control-plane nodes)
         +-- 10.10.10.11  talos-cp1  (control plane)
         +-- 10.10.10.12  talos-wk1  (worker)
         +-- 10.10.10.13  talos-wk2  (worker)
@@ -107,6 +108,17 @@ kubectl get pods -n kube-system -l k8s-app=cilium
   a rewrite. Talos only evaluates the CNI setting at initial bootstrap, so
   changing CNIs again means a full `tofu destroy` / `tofu apply`, not an
   in-place update.
-- **No control-plane HA / VIP.** One control-plane node is the right call
-  on a single 16GB stick. Once the RAM upgrade lands, bump `var.nodes` to
-  3 control-plane nodes and add a `vip` patch — it's an incremental change.
+- **Control-plane VIP: wired in, not yet battle-tested.** `var.network_vip`
+  (default `10.10.10.10`) is configured on every control-plane node via a
+  `vip` patch, and `cluster_endpoint` points at it rather than a specific
+  node — this is what would survive `talos-cp1` going down. With only one
+  control-plane node running today, this has only been confirmed to make
+  the VIP reachable, not that failover actually works — that needs a
+  second control-plane node to verify for real. The patch assumes the
+  VM's interface is named `eth0`; confirm with `talosctl get links -n
+  <node-ip>` before applying if the VM's NIC setup ever changes.
+- **Adding more control-plane nodes** is just adding entries to
+  `var.nodes` with `role = "controlplane"` — VM creation, machine config,
+  and the health check already use `for_each`/list comprehensions over
+  every control-plane node, not just the first. RAM is the real
+  constraint on a single 16GB stick, not the code.

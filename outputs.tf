@@ -8,8 +8,12 @@ output "kubeconfig" {
   sensitive = true
 }
 
-output "control_plane_ip" {
-  value = local.primary_control_node_ip
+output "control_plane_ips" {
+  value = [for n in local.control_plane_nodes : n.ip]
+}
+
+output "control_plane_vip" {
+  value = var.network_vip
 }
 
 output "worker_ips" {
