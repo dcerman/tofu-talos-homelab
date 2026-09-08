@@ -37,6 +37,16 @@ data "talos_machine_configuration" "controlplane" {
           image = local.install_image
         }
       }
+      # Disables the default Flannel CNI so Cilium (installed separately via
+      # helm_release in cilium.tf) can take over instead. Must match on both
+      # controlplane and worker configs.
+      cluster = {
+        network = {
+          cni = {
+            name = "none"
+          }
+        }
+      }
     }),
   ]
 }
@@ -54,6 +64,13 @@ data "talos_machine_configuration" "worker" {
         install = {
           disk  = "/dev/vda"
           image = local.install_image
+        }
+      }
+      cluster = {
+        network = {
+          cni = {
+            name = "none"
+          }
         }
       }
     }),
@@ -89,4 +106,25 @@ resource "talos_cluster_kubeconfig" "this" {
   depends_on           = [talos_machine_bootstrap.this]
   client_configuration = talos_machine_secrets.this.client_configuration
   node                 = local.primary_control_node_ip
+}
+
+# Bootstrap completing and the kubeconfig being generated both happen almost
+# instantly — neither actually confirms the API server is up yet (etcd and
+# the control plane static pods still need to start). Without this gate,
+# helm_release.cilium tries to connect before anything is listening on
+# :6443 and fails with "connection refused".
+#
+# skip_kubernetes_checks = true is required here: the full check also waits
+# for all k8s nodes to report Ready, kube-proxy, and CoreDNS — all of which
+# depend on a CNI already being installed, which is exactly what hasn't
+# happened yet at this point in the graph. This only waits for the
+# pre-Kubernetes layer (etcd, apid, boot sequence).
+data "talos_cluster_health" "this" {
+  depends_on = [talos_machine_bootstrap.this]
+
+  client_configuration   = talos_machine_secrets.this.client_configuration
+  control_plane_nodes    = [for n in local.control_plane_nodes : n.ip]
+  worker_nodes           = [for n in local.worker_nodes : n.ip]
+  endpoints              = [for n in local.control_plane_nodes : n.ip]
+  skip_kubernetes_checks = true
 }

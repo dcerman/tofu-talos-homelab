@@ -13,3 +13,18 @@ provider "proxmox" {
 }
 
 provider "talos" {}
+
+# Authenticates against the cluster this module just created, using the
+# kubeconfig from talos_cluster_kubeconfig.this (talos.tf). This makes the
+# helm provider's config depend on a resource — expected for a bootstrap
+# module like this one. It means `tofu plan` against a not-yet-created
+# cluster shows this provider's values as "(known after apply)", which is
+# normal here, not an error.
+provider "helm" {
+  kubernetes = {
+    host                   = yamldecode(talos_cluster_kubeconfig.this.kubeconfig_raw).clusters[0].cluster.server
+    cluster_ca_certificate = base64decode(yamldecode(talos_cluster_kubeconfig.this.kubeconfig_raw).clusters[0].cluster["certificate-authority-data"])
+    client_certificate     = base64decode(yamldecode(talos_cluster_kubeconfig.this.kubeconfig_raw).users[0].user["client-certificate-data"])
+    client_key             = base64decode(yamldecode(talos_cluster_kubeconfig.this.kubeconfig_raw).users[0].user["client-key-data"])
+  }
+}
