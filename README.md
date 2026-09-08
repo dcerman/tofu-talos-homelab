@@ -5,6 +5,7 @@ Proxmox host, using:
 
 - [`bpg/proxmox`](https://registry.terraform.io/providers/bpg/proxmox/latest) — downloads the Talos image and creates the VMs
 - [`siderolabs/talos`](https://registry.terraform.io/providers/siderolabs/talos/latest) — generates machine configs, applies them, and bootstraps the cluster
+- [`hashicorp/helm`](https://registry.terraform.io/providers/hashicorp/helm/latest) — installs Cilium (the cluster's CNI) once the cluster is reachable
 
 ## Architecture
 
@@ -75,7 +76,9 @@ tofu apply
 
 This will, in order: download the Talos image, create the three VMs, apply
 machine configuration to each, bootstrap the cluster on the control-plane
-node, and generate a kubeconfig.
+node, wait for etcd/apid to report healthy, generate a kubeconfig, and
+install Cilium as the cluster's CNI. The Cilium install is usually the
+longest single step (under a minute on this hardware).
 
 If you're running `tofu`/`talosctl`/`kubectl` from a machine other than
 the Proxmox host itself, that machine also needs a route to
@@ -92,13 +95,18 @@ export KUBECONFIG=$PWD/kubeconfig.yaml
 
 talosctl health -n 10.10.10.11
 kubectl get nodes -o wide
+kubectl get pods -n kube-system -l k8s-app=cilium
 ```
 
 ## Notes / things you'll likely want to change next
 
-- **No CNI decision baked in.** Talos ships Flannel by default, which is
-  fine to start with. Swapping to Cilium (recommended if you want Gateway
-  API / L2 announcements later) is a config-patch change, not a rewrite.
+- **CNI: Cilium**, installed via `helm_release` in `cilium.tf`, replacing
+  Talos's default Flannel (disabled via the `cluster.network.cni.name =
+  none` patch in `talos.tf`). Runs alongside kube-proxy for now, not the
+  kube-proxy-free mode — switching to that later is a values change, not
+  a rewrite. Talos only evaluates the CNI setting at initial bootstrap, so
+  changing CNIs again means a full `tofu destroy` / `tofu apply`, not an
+  in-place update.
 - **No control-plane HA / VIP.** One control-plane node is the right call
   on a single 16GB stick. Once the RAM upgrade lands, bump `var.nodes` to
   3 control-plane nodes and add a `vip` patch — it's an incremental change.
